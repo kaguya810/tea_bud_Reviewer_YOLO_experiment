@@ -1,0 +1,45 @@
+{
+  "tag": "p50_is_v5n_p50",
+  "ckpt": "runs/is_v5n_p50/weights/best.pt",
+  "protocol": {
+    "imgsz": 640,
+    "conf": 0.001,
+    "iou": 0.7,
+    "max_det": 300,
+    "rect": true,
+    "workers": 0,
+    "split": "val"
+  },
+  "n_images": 154,
+  "names": [
+    "Singlebud",
+    "oneleafOnebud",
+    "threeleafOnebud",
+    "twoleafOnebud"
+  ],
+  "stats": {
+    "metrics/precision(B)": 0.7471621485892291,
+    "metrics/recall(B)": 0.6332405145675599,
+    "metrics/mAP50(B)": 0.6903910164682148,
+    "metrics/mAP50-95(B)": 0.5917346856007343,
+    "fitness": 0.5917346856007343
+  },
+  "per_class": {
+    "Singlebud": {
+      "ap50": 0.4994524840304285,
+      "ap50_95": 0.403097502340687
+    },
+    "oneleafOnebud": {
+      "ap50": 0.67194874640077,
+      "ap50_95": 0.5719580853616935
+    },
+    "threeleafOnebud": {
+      "ap50": 0.7674558421069577,
+      "ap50_95": 0.7033662690363502
+    },
+    "twoleafOnebud": {
+      "ap50": 0.8227069933347029,
+      "ap50_95": 0.6885168856642065
+    }
+  }
+}

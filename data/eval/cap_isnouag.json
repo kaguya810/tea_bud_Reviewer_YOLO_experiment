@@ -1,0 +1,45 @@
+{
+  "tag": "isnouag",
+  "ckpt": "runs/inscene_noaug/weights/best.pt",
+  "protocol": {
+    "imgsz": 640,
+    "conf": 0.001,
+    "iou": 0.7,
+    "max_det": 300,
+    "rect": true,
+    "workers": 0,
+    "split": "val"
+  },
+  "n_images": 154,
+  "names": [
+    "Singlebud",
+    "oneleafOnebud",
+    "threeleafOnebud",
+    "twoleafOnebud"
+  ],
+  "stats": {
+    "metrics/precision(B)": 0.4054914368076441,
+    "metrics/recall(B)": 0.47649330002271173,
+    "metrics/mAP50(B)": 0.44139062136079826,
+    "metrics/mAP50-95(B)": 0.3566008181163335,
+    "fitness": 0.3566008181163335
+  },
+  "per_class": {
+    "Singlebud": {
+      "ap50": 0.29771433333815517,
+      "ap50_95": 0.21627518764034953
+    },
+    "oneleafOnebud": {
+      "ap50": 0.4690060862009843,
+      "ap50_95": 0.4260645174053869
+    },
+    "threeleafOnebud": {
+      "ap50": 0.411464338266218,
+      "ap50_95": 0.3088631226813956
+    },
+    "twoleafOnebud": {
+      "ap50": 0.5873777276378356,
+      "ap50_95": 0.475200444738202
+    }
+  }
+}
