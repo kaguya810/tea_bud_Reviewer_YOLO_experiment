@@ -1,0 +1,10 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Local experiment data (hidden from git)
+data/
+
+# Optional local outputs
+runs/
+_diag/
