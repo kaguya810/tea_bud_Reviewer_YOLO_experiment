@@ -14,14 +14,14 @@ Outputs per metric (overall and per class):
     plus the single-model (unpaired) sd for comparison.
 
 Usage:
-    python _diag/transfer/_paired_bootstrap.py --n 2000
+    python code/_paired_bootstrap.py --n 2000
 """
 import argparse
 import json
 import sys
 from pathlib import Path
 
-ROOT = Path(r"D:\CodeWorkspace\DL_teabud-seg")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -31,8 +31,8 @@ from ultralytics.utils.metrics import DetMetrics
 
 
 def load(tag):
-    z = np.load(str(ROOT / f"_diag/transfer/cap_{tag}.npz"), allow_pickle=True)
-    meta = json.loads((ROOT / f"_diag/transfer/cap_{tag}.json").read_text(encoding="utf-8"))
+    z = np.load(str(ROOT / f"data/eval/cap_{tag}.npz"), allow_pickle=True)
+    meta = json.loads((ROOT / f"data/eval/cap_{tag}.json").read_text(encoding="utf-8"))
     return z, meta
 
 
@@ -122,7 +122,7 @@ def main():
                              for c in range(len(names))},
         "point_estimate": point,
         "paired_delta": {k: summarise(D[k]) for k in D},
-        "unpaired_sd_for_comparison": {
+        "unpaired_std_for_comparison": {
             "ours": {k: float(np.std(S["ours"][k], ddof=1)) for k in S["ours"]},
             "baseline": {k: float(np.std(S["baseline"][k], ddof=1)) for k in S["baseline"]},
             "paired_delta": {k: float(np.std(D[k], ddof=1)) for k in D},
@@ -140,7 +140,7 @@ def main():
             "delta_ap50_95": summarise(Dcls[c]["ap"]),
         }
 
-    o = ROOT / "_diag/transfer/paired_bootstrap.json"
+    o = ROOT / "data/eval/paired_bootstrap.json"
     o.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(out, ensure_ascii=False, indent=2))
     print(f"[ok] {o}")

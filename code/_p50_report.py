@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-"""四臂训练结束后的一键对比：读出所有 run，做配对 bootstrap，出一张表。
-
-用法：python _p50_report.py
-"""
+"""读取已完成 run 的结果并输出简要对比。"""
 from __future__ import annotations
 
 import csv
@@ -11,27 +8,25 @@ import pathlib
 import subprocess
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent
-PY = str(ROOT / ".venv" / "Scripts" / "python.exe")
+CODE_DIR = pathlib.Path(__file__).resolve().parent
+REPO_ROOT = CODE_DIR.parent
+PY = sys.executable
 
-# (run 名, 协议, 臂, 参数量)
 RUNS = [
-    ("sd_base_p50", "场景不相交", "官方 yolo11n(300ep/pat50)", "2.59M"),
-    ("sd_e0_p50", "场景不相交", "ours EGAStem(300ep/pat50)", "2.59M"),
-    ("is_base_p50", "随机划分", "官方 yolo11n(300ep/pat50)", "2.59M"),
-    ("is_e0_p50", "随机划分", "ours EGAStem(300ep/pat50)", "2.59M"),
-    # 历史对照
-    ("e0_official_aug", "场景不相交", "ours EGAStem(150轮)", "2.59M"),
-    ("inscene_base", "随机划分", "官方 yolo11n(150轮)", "2.59M"),
-    ("inscene_e0", "随机划分", "ours EGAStem(150轮)", "2.59M"),
-    ("inscene_e0_300e", "随机划分", "ours EGAStem(300轮)", "2.59M"),
+    ("is_base_p50", "official stem, 300ep/pat50", "2.59M"),
+    ("is_e0_p50", "EGAStem, 300ep/pat50", "2.59M"),
+    ("is_v5n_p50", "YOLOv5nu, 300ep/pat50", "1.89M"),
+    ("is_v8n_p50", "YOLOv8n, 300ep/pat50", "3.01M"),
+    ("inscene_base", "official stem, 150ep", "2.59M"),
+    ("inscene_e0", "EGAStem, 150ep", "2.59M"),
+    ("inscene_e0_300e", "EGAStem, 300ep fixed", "2.59M"),
+    ("inscene_yolo11s", "EGAStem-s, 150ep", "9.43M"),
+    ("inscene_noaug", "EGAStem, 150ep noaug", "2.59M"),
 ]
 
-DATA = {"场景不相交": "_eval154_dataset.yaml", "随机划分": "inscene_dataset.yaml"}
 
-
-def read_run(n: str):
-    p = ROOT / "runs" / n / "results.csv"
+def read_run(name: str):
+    p = REPO_ROOT / "data" / "runs" / name / "results.csv"
     if not p.exists():
         return None
     rows = [{k.strip(): v for k, v in r.items()} for r in csv.DictReader(p.open(encoding="utf-8"))]
@@ -40,89 +35,59 @@ def read_run(n: str):
     k50, k95 = "metrics/mAP50(B)", "metrics/mAP50-95(B)"
     fit = lambda r: 0.1 * float(r[k50]) + 0.9 * float(r[k95])  # noqa: E731
     best = max(rows, key=fit)
-    return {"epochs": len(rows), "best_ep": int(best["epoch"]),
-            "mAP50": float(best[k50]), "mAP50_95": float(best[k95]),
-            "fitness": fit(best)}
+    return {
+        "epochs": len(rows),
+        "best_ep": int(best["epoch"]),
+        "mAP50": float(best[k50]),
+        "mAP50_95": float(best[k95]),
+        "fitness": fit(best),
+    }
+
+
+def run_pair(a: str, b: str, n: int = 2000):
+    out = REPO_ROOT / "data" / "eval" / f"paired_{a}_vs_{b}.json"
+    if out.exists():
+        return json.loads(out.read_text(encoding="utf-8"))
+    cmd = [PY, str(CODE_DIR / "_paired_general.py"), "--a", a, "--b", b, "--n", str(n)]
+    subprocess.run(cmd, cwd=str(REPO_ROOT), check=True)
+    return json.loads(out.read_text(encoding="utf-8"))
 
 
 def main() -> int:
     print("=" * 96)
-    print("epochs=300 / patience=50 四臂对比")
+    print("固定协议结果汇总")
     print("=" * 96)
-    print(f"{'run':<22}{'协议':<12}{'臂':<24}{'轮数':>6}{'mAP50':>9}{'mAP50-95':>10}{'@ep':>6}")
+    print(f"{'run':<22}{'臂':<30}{'轮数':>6}{'mAP50':>9}{'mAP50-95':>10}{'@ep':>6}")
     print("-" * 96)
-    got = {}
-    for n, proto, arm, par in RUNS:
-        d = read_run(n)
-        if d is None:
-            print(f"{n:<22}{proto:<12}{arm:<24}{'未完成/不存在':>6}")
-            continue
-        got[n] = (d, proto, arm)
-        stop = "  ← 早停" if d["epochs"] < 300 and d["best_ep"] < d["epochs"] - 8 else ""
-        print(f"{n:<22}{proto:<12}{arm:<24}{d['epochs']:>6}{d['mAP50']:>9.4f}"
-              f"{d['mAP50_95']:>10.4f}{d['best_ep']:>6}{stop}")
 
-    # ---- 配对检验 ----
+    got = {}
+    for name, arm, _ in RUNS:
+        d = read_run(name)
+        if d is None:
+            print(f"{name:<22}{arm:<30}{'缺少结果':>6}")
+            continue
+        got[name] = d
+        print(f"{name:<22}{arm:<30}{d['epochs']:>6}{d['mAP50']:>9.4f}{d['mAP50_95']:>10.4f}{d['best_ep']:>6}")
+
     pairs = [
-        ("sd_e0_p50", "e0_official_aug", "场景不相交：ours 300轮 vs 150轮  ★预算效应"),
-        ("sd_e0_p50", "sd_base_p50", "场景不相交：ours300 vs 基线300  ★架构"),
-        ("sd_base_p50", "e0_official_aug", "场景不相交：基线300 vs ours150"),
-        ("is_e0_p50", "inscene_e0", "随机划分：ours 300轮 vs 150轮  ★预算效应"),
-        ("is_e0_p50", "is_base_p50", "随机划分：ours300 vs 基线300  ★架构"),
-        ("is_e0_p50", "inscene_e0_300e", "随机划分：ours 300ep+pat50 vs 300ep 固定"),
+        ("is_e0_p50", "inscene_e0", "budget 300 vs 150"),
+        ("is_e0_p50", "is_base_p50", "stem ours vs official at 300ep"),
+        ("inscene_e0", "inscene_yolo11s", "capacity n vs s at 150ep"),
+        ("inscene_e0", "inscene_noaug", "augmentation on vs off at 150ep"),
     ]
-    print()
-    print("=" * 96)
-    print("配对 bootstrap（需先捕获逐图统计；缺捕获的会自动跳过）")
+
+    print("\n" + "=" * 96)
+    print("配对 bootstrap（delta = A - B）")
     print("=" * 96)
     for a, b, desc in pairs:
         if a not in got or b not in got:
-            print(f"  {desc:<44} 跳过（run 未完成）")
+            print(f"{desc:<40} 跳过（缺少 run）")
             continue
-        # ★ 缓存跳过：配对 JSON 已存在就直接读，不重跑（每组 ~20 min）
-        done = ROOT / f"_diag/transfer/paired_p50_{a}_vs_p50_{b}.json"
-        if done.exists():
-            d = json.loads(done.read_text(encoding="utf-8"))
-            print(f"  {desc}   [已缓存]")
-            for key in ("mAP50", "mAP50_95"):
-                s_ = d.get(key)
-                if not s_:
-                    continue
-                sig = ("★显著" if (s_["ci95"][0] > 0 or s_["ci95"][1] < 0) else "在噪声内")
-                print(f"      {key:9s} Δ={s_['delta_mean']:+.4f}  "
-                      f"95%CI=[{s_['ci95'][0]:+.4f},{s_['ci95'][1]:+.4f}]  "
-                      f"sd={s_['delta_sd']:.4f}  P(Δ>0)={s_.get('P_delta_gt_0', float('nan')):.3f}"
-                      f"  -> {sig}")
-            continue
-        proto = got[a][1]
-        data = DATA[proto]
-        cap_a = ROOT / f"_diag/transfer/cap_p50_{a}.npz"
-        cap_b = ROOT / f"_diag/transfer/cap_p50_{b}.npz"
-        for run, cap in ((a, cap_a), (b, cap_b)):
-            if not cap.exists():  # ★ 已有捕获就跳过（capture 需跑 GPU，约 1 min）
-                ck = ROOT / "runs" / run / "weights" / "best.pt"
-                if ck.exists():
-                    subprocess.run([PY, "_diag/transfer/_capture_val.py", "--ckpt",
-                                    str(ck.relative_to(ROOT)), "--tag", f"p50_{run}",
-                                    "--out", str(cap.with_suffix("")), "--data", data],
-                                   cwd=str(ROOT), capture_output=True)
-        if not (cap_a.exists() and cap_b.exists()):
-            print(f"  {desc:<44} 捕获失败")
-            continue
-        r = subprocess.run([PY, "_paired_general.py", "--a", f"p50_{a}", "--b", f"p50_{b}",
-                            "--n", "2000"], cwd=str(ROOT), capture_output=True, text=True,
-                           encoding="utf-8", errors="replace")
-        line50 = line95 = ""
-        for ln in (r.stdout or "").splitlines():
-            if ln.strip().startswith("mAP50 "):
-                line50 = ln.strip()
-            if ln.strip().startswith("mAP50_95 "):
-                line95 = ln.strip()
-        sig = "显著" if ("显著" in line50 and "噪声" not in line50) else "在噪声内"
-        print(f"  {desc}")
-        print(f"      {line50}")
-        print(f"      {line95}")
-        print(f"      -> {sig}")
+        d = run_pair(a, b)
+        m50 = d.get("mAP50", {})
+        ci = m50.get("ci95", [0.0, 0.0])
+        flag = "已确立" if (ci[0] > 0 or ci[1] < 0) else "未获确立"
+        print(f"{desc:<40} Δ={m50.get('delta_mean', float('nan')):+.4f}  CI=[{ci[0]:+.4f},{ci[1]:+.4f}]  {flag}")
     return 0
 
 

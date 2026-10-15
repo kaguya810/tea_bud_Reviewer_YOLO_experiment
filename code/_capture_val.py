@@ -9,14 +9,14 @@ Protocol is pinned explicitly so two models are always evaluated identically:
     imgsz=640, conf=0.001, iou=0.7, max_det=300, rect=True, workers=0, split=val
 
 Usage:
-    python _diag/transfer/_capture_val.py --ckpt <path> --tag ours --out _diag/transfer/cap_ours
+    python code/_capture_val.py --ckpt <path> --tag ours --out data/eval/cap_ours
 """
 import argparse
 import json
 import sys
 from pathlib import Path
 
-ROOT = Path(r"D:\CodeWorkspace\DL_teabud-seg")
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -37,7 +37,7 @@ def main():
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--tag", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--data", default="experiments/baseline_e5/tea_bud_4cls_v2k_detect.yaml")
+    ap.add_argument("--data", default="data/split/inscene_dataset.yaml")
     args = ap.parse_args()
 
     overrides = dict(model=None, data=str(ROOT / args.data), split="val", imgsz=PROTOCOL["imgsz"],

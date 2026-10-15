@@ -17,11 +17,14 @@ tea_bud_Reviewer_YOLO_experiment/
 
 ## 关键结论
 
+- 本仓库是论文实验记录；论文中的数字与最终表述以论文正文为准，`REPORT.md` 提供工程复核日志
 - 最优配置：`is_e0_p50`（EGAStem + 官方布局 + 标准增强 + 300 轮）
 - 最优指标：`mAP50 = 0.7295`，`mAP50-95 = 0.6202`
-- 与官方 `yolo11n` 基线（同 300 轮）相比有稳定提升
-- 300 轮训练显著优于 150 轮训练
-- 在本任务数据规模下，放大到 `yolo11s` 为负收益
+- 入口模块（EGAStem）在 300 轮下取得九个配置中**最高的点估计**（mAP50 0.7295 vs 官方 0.7034），
+  但其效应量低于本设计的可分辨量级，95 % 区间包含零，**未获确立**；150 轮下方向相反
+- 300 轮训练优于 150 轮训练，差值的 95 % 区间排除零（+0.0634，CI +0.006 … +0.119），已确立
+- 放大到 `yolo11s` 未获确立的收益；严格控制的容量对照（n vs s，150 轮）区间含零
+- 数据集 1,375 图 / 1,429 个标注框；训练 1,221 图 / 1,271 框，验证 154 图 / 158 框
 
 详细实验过程、统计检验与工程记录见：[`REPORT.md`](./REPORT.md)
 
@@ -52,7 +55,7 @@ python code/_paired_general.py --a p50_is_e0_p50 --b p50_is_base_p50 --n 2000
 ```bash
 python code/train_ega_dsa.py --arm ours \
   --cfg code/cfg/yolo11n-tea-official-layout.yaml --recipe baseline \
-  --data <数据目录>/inscene_dataset.yaml --epochs 300 --patience 50 --name is_e0_p50
+  --data data/split/inscene_dataset.yaml --epochs 300 --patience 50 --name is_e0_p50
 ```
 
 ## 数据文件说明
