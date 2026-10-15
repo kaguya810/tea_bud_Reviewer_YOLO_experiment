@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """通用配对 bootstrap：任意两个 tag 的捕获文件。
 
-复用 `_diag/transfer/_paired_bootstrap.py` 里已经验证过的
-`DetMetrics` 统计重建逻辑（`make_stats` / `evaluate` / `summarise`），
+复用 `_paired_bootstrap.py` 的统计重建逻辑（`make_stats` / `evaluate` / `summarise`），
 只把 tag 参数化、并把「谁减谁」的方向写明确。
 
 用法：
@@ -16,17 +15,12 @@ import json
 import pathlib
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "_diag" / "transfer"))
+CODE_DIR = pathlib.Path(__file__).resolve().parent
+REPO_ROOT = CODE_DIR.parent
+sys.path.insert(0, str(CODE_DIR))
 
 import numpy as np  # noqa: E402
-
-import importlib.util  # noqa: E402
-
-spec = importlib.util.spec_from_file_location("pb", ROOT / "_diag" / "transfer" / "_paired_bootstrap.py")
-pb = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(pb)
+import _paired_bootstrap as pb  # noqa: E402
 
 
 def main() -> int:
@@ -102,7 +96,8 @@ def main() -> int:
               f"  B={eb['ap'].get(c, float('nan')):.4f}  Δ={s['delta_mean']:+.4f}"
               f"  CI=[{s['ci95'][0]:+.3f},{s['ci95'][1]:+.3f}]  -> {sig}")
 
-    o = ROOT / f"_diag/transfer/paired_{args.a}_vs_{args.b}.json"
+    o = REPO_ROOT / "data/eval" / f"paired_{args.a}_vs_{args.b}.json"
+    o.parent.mkdir(parents=True, exist_ok=True)
     o.write_text(json.dumps({"a": args.a, "b": args.b, "protocol": ma["protocol"],
                              "n_images": n, "n_boot": args.n, "point": {"a": ea, "b": eb},
                              **out}, ensure_ascii=False, indent=2), encoding="utf-8")
